@@ -1,0 +1,347 @@
+
+
+##http://adegenet.r-forge.r-project.org/files/MRC-session2-tuto.1.3.pdf
+
+library("ape", lib.loc="\\\\staff/Home/SCIFAC/lewena/DocumentsRedir/R/win-library/3.5")
+library(stats)
+library(ade4)
+library(ape)
+library(adegenet)
+library(phangorn)
+library(geiger)
+library(nlme)
+##Most important:
+library(praise)
+dna<-read.dna(file="ITS_aligned_cut.fa", format="fasta")
+dna
+
+rownames(dna)<-c("AchMil", "AgrCap" ,"AloPra", "BroWil" ,"CicInt","CirVul", "CynCri","DacGlo", "ElyRep" ,"HolLan", "LeoAut", "LolPer" ,"MedSat", "PhlPra", "PlaLan", "PlaMaj" ,"PoaCit", "SchAru" ,"TriPra" ,"UncUnc" )
+
+##umbenannt zu ITS
+dnaITS<-dna
+
+
+##Nun das gleiche fuer trnl gene das schon aligned etc. 
+##Im folder fasta Plants
+##soltte die Beschreibung des alignments etc sein.
+
+dnaTRNL<-read.dna("aligned_plants_trnl_cut.fa",format="fasta")
+dnaTRNL
+
+##hier sind die labels in anderer reihenfolge..
+labels(dnaTRNL) #checken
+
+##rownames sortieren:
+rownames(dnaTRNL)<-c("BroWil" ,"PoaCit","AchMil", "AgrCap" ,"AloPra", "CicInt","CirVul", "CynCri","DacGlo", "ElyRep" ,"HolLan", "LeoAut", "LolPer" ,"MedSat", "PhlPra", "PlaLan", "PlaMaj" , "SchAru" ,"TriPra" ,"UncUnc" )
+labels(dnaTRNL)
+
+##das muesste nun beide gene enthalten, wird auch automatisch sortiert.
+#
+dnatest<-cbind(dnaITS,dnaTRNL)
+dna<-dnatest
+##dna ist nun alle 20 Arten mit den ITS und TRNL sequenzen
+
+##jetzt damit einen tree bauen
+##erst distance matrix machen
+##welche nehmen?
+#test mit verschiedenen distnace berechnungen
+>distTN93<-dist.dna(dna, model="TN93")
+#TN93: Tamura and Nei (1993) developed a model which assumes distinct rates for both kinds of transition 
+#(A <-> G versus C <-> T), and transversions. The base frequencies are not assumed to be equal and are estimated from the data. 
+#A gamma correction of the inter-site variation in substitution rates is possible.
+
+distTNK81<-dist.dna(dna, model="K81")
+
+class(distTN93)  #check dass es auch distance matrix ist
+
+
+##mal anschauen als distance plot
+temp<-as.data.frame(as.matrix(distTN93))
+table.paint(temp,cleg=0,clabel.row=0.5, clabel.col=0.5)
+
+temp2<-as.data.frame(as.matrix(distTNK81))
+table.paint(temp2,cleg=0,clabel.row=0.5, clabel.col=0.5)
+
+
+##Tree, used the classical neighbor joining algorith
+tree<-nj(distTN93)
+class(tree)
+tree
+
+plot(tree,cex=0.6)
+
+##Okay fuer beide sieht der tree echt bloed aus, da sind zwei graeser ewig weit weg. Ich teste mal nur ein gen
+##die sehen alle murks aus. Nur wenn ich ITS verwende wird es besser. scheint da was zu fehlen in trnl?
+#tre3 aus der distance matrix von ITS war der beste, mit upmga anstelle von nj
+#ob TH93 oder K81, alles ziemlich gleich
+
+##Assessing the quality of the phylogeny
+x<-as.vector(distITS)
+y<-as.vector(as.dist(cophenetic(tre3)))
+plot(x,y, xlab="original distance", ylab="distance in the tree", main="Is UPGMA appropriate?", pch=20, col=transp("black",0.1),cex=3)
+
+
+y2<-as.vector(as.dist(cophenetic(nj(distITS))))
+ plot(x,y2, xlab="original distance", ylab="distance in the tree", main="Is NJ appropriate?", pch=20,cex=3)
+##der NJ tree scheint besser zu sein obwohl er nicht so gut angeordnet ist. Aber die assumption fuer UPGMA
+  ##sscheint zu sein, dass alle die selbe amount evolution durchgangen haben - daher sind sie auch alle auf der gleichen ebenen am ende
+  #eingeordnet. 
+  
+###der maximum likelihood tree #  Like  parsimony-based  approaches,  it  requires  a  tree  (in ape’s format, i.e.  a phyloobject) and the 
+ #original DNA sequences inphangorn’sown format,phyDat.  
+# we convert the data and generate a tree to initialize the method:
+dnaITS2 <- as.phyDat(dnaITS) 
+class(dnaITS2)
+
+dnaITS2
+
+tre.ini<-nj(dist.dna(dnaITS, model="TN93"))
+tre.ini
+
+
+
+#To  initialize  the  optimization  procedure,  we  need  an  initial  fit  for  the model chosen.  
+#This is computed using pml
+fit.ini<-pml(tre.ini, dnaITS2,k=4)
+loglikelihood: -7026.097 
+
+unconstrained loglikelihood: -4707.665 
+Discrete gamma model
+Number of rate categories: 4 
+Shape parameter: 1 
+
+Rate matrix:
+  a c g t
+a 0 1 1 1
+c 1 0 1 1
+g 1 1 0 1
+t 1 1 1 0
+
+Base frequencies:  
+  0.25 0.25 0.25 0.25 
+
+#Optimize tree
+fit<-optim.pml(fit.ini, optNni = TRUE, optBf = TRUE, optQ = TRUE,optGamma = TRUE)
+fit
+class(fit)
+names(fit) ##all the useful parameters of the model and the optimal tree
+#optimal tree is stored in fit$tree
+
+##test if optimized tree is better than original
+anova(fit.ini,fit)
+AIC(fit.ini)
+AIC(fit)
+
+treeML<-root(fit$tree,1)
+plot(treeML)
+
+##YES!! that looks perfect!!
+praise()
+
+
+
+
+###And now the PGLS
+#http://www.phytools.org/Cordoba2017/ex/4/PGLS.html
+
+
+#define covariance structure
+bm<-corBrownian(1,treeML)
+
+#investigate models
+model1<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =bm)
+summary(model1)
+
+##Ergibt unter anderem"
+AIC      BIC    logLik
+135.3611 139.6094 -61.6805
+Residual standard error: 39.223
+
+
+##das ist weighted. Offensichtlich nimmt die variance mit meanASV zu, daher havbe ich das eingezogen als weighted, dass es
+#proportional zu 
+model1w<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =bm, weights=~mean_ASVs)
+summary(model1w)
+
+AIC      BIC    logLik
+97.02847 101.2768 -42.51423
+Residual standard error: 2.748863 ##das ist ziemlich gut, die plots fitted zu residuals sehen allerdings alle 
+#komisch aus. Ist ds korrekt? Macht das sinn mit dem weighted?
+
+##Oder muss ich method ML nutzen?
+model1b<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =bm, method="ML")
+summary(model1b)
+
+##Aber ist es Brownina motion?
+cPage<-corPagel(1,treeML)
+model1c<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =cPage, method="ML")
+
+##Das gibt ein Fehler
+##Wie in http://lukejharmon.github.io/ilhabela/instruction/2015/07/03/PGLS/
+# this is a problem with scale. We can do a quick fix by making the branch
+# lengths longer. This will not affect the analysis other than rescaling a
+# nuisance parameter
+tempTree <-treeML
+tempTree$edge.length <- tempTree$edge.length * 100
+cPage<-corPagel(1,tempTree)
+##Das funktioniert nicht. weder mal 10 noch mal 1000 machen einen Unterschied.
+
+
+NEUU
+
+
+##Das sind die fasta seq von den Pflanze,.
+#jeweils identische seq pro replicate
+
+dnaR_ITS<-read.dna(file="ITS_plants_aligned_cut_repl.fa", format="fasta")
+dnaR_ITS
+
+##jetzt damit einen tree bauen
+##erst distance matrix machen
+##welche nehmen?
+#test mit verschiedenen distnace berechnungen
+dist.Sp.TN93<-dist.dna(dnaR_ITS, model="TN93")
+#TN93: Tamura and Nei (1993) developed a model which assumes distinct rates for both kinds of transition 
+#(A <-> G versus C <-> T), and transversions. The base frequencies are not assumed to be equal and are estimated from the data. 
+#A gamma correction of the inter-site variation in substitution rates is possible.
+
+
+##moeglisch auch, siehe die Liste
+distTNK81<-dist.dna(dna, model="K81")
+
+class(distTN93)  #check dass es auch distance matrix ist
+
+
+##mal anschauen als distance plot
+temp.Sp<-as.data.frame(as.matrix(dist.Sp.TN93))
+table.paint(temp.Sp,cleg=0,clabel.row=0.5, clabel.col=0.5)
+
+temp2<-as.data.frame(as.matrix(distTNK81))
+table.paint(temp2,cleg=0,clabel.row=0.5, clabel.col=0.5)
+
+
+##Tree, used the classical neighbor joining algorith
+tree.Sp<-nj(dist.Sp.TN93)
+class(tree.Sp)
+tree.Sp
+
+plot(tree.Sp,cex=0.6)
+
+tree.Sp2<-upgma(dist.Sp.TN93)
+tree.Sp2
+plot(tree.Sp2, cex=0.6)
+
+
+##Assessing the quality of the phylogeny
+x.Sp<-as.vector(dist.Sp.TN93)
+y.Sp<-as.vector(as.dist(cophenetic(tree.Sp)))
+plot(x,y, xlab="original distance", ylab="distance in the tree", main="Is nj appropriate?", pch=20,cex=3)
+
+
+y.Sp2<-as.vector(as.dist(cophenetic(nj(tree.Sp2))))  ####That does not work....
+plot(x,y.Sp2, xlab="original distance", ylab="distance in the tree", main="Is UPGMA appropriate?", pch=20,cex=3)
+##der NJ tree scheint besser zu sein obwohl er nicht so gut angeordnet ist. Aber die assumption fuer UPGMA
+##sscheint zu sein, dass alle die selbe amount evolution durchgangen haben - daher sind sie auch alle auf der gleichen ebenen am ende
+#eingeordnet. 
+
+###der maximum likelihood tree #  Like  parsimony-based  approaches,  it  requires  a  tree  (in ape’s format, i.e.  a phyloobject) and the 
+#original DNA sequences inphangorn’sown format,phyDat.  
+# we convert the data and generate a tree to initialize the method:
+dna.Sp.ITS <- as.phyDat(dnaR_ITS) 
+
+dna.Sp.ITS
+
+tre.ini.Sp<-nj(dist.dna(dnaR_ITS, model="TN93"))
+tre.ini.Sp
+
+
+
+#To  initialize  the  optimization  procedure,  we  need  an  initial  fit  for  the model chosen.  
+#This is computed using pml
+fit.ini.Sp<-pml(tre.ini.Sp, dna.Sp.ITS,k=4)
+fit.ini.Sp
+loglikelihood: -7026.097 
+
+unconstrained loglikelihood: -4707.665 
+Discrete gamma model
+Number of rate categories: 4 
+Shape parameter: 1 
+
+Rate matrix:
+  a c g t
+a 0 1 1 1
+c 1 0 1 1
+g 1 1 0 1
+t 1 1 1 0
+
+Base frequencies:  
+  0.25 0.25 0.25 0.25 
+
+#Optimize tree
+fit.Sp<-optim.pml(fit.ini.Sp, optNni = TRUE, optBf = TRUE, optQ = TRUE,optGamma = TRUE)
+fit.Sp
+class(fit.Sp)
+names(fit.Sp) ##all the useful parameters of the model and the optimal tree
+#optimal tree is stored in fit$tree
+
+##test if optimized tree is better than original
+anova(fit.ini.Sp,fit.Sp)
+AIC(fit.ini.Sp)
+AIC(fit.Sp)
+
+tree.Sp.ML<-root(fit.Sp$tree,1)
+plot(tree.Sp.ML)
+##YES!! that looks perfect!!
+praise()
+
+
+##okay, das kann man nicht modeln da wegen der einzelnen identischen ITS sequenzen zu viele Nullen vorhanden sind in der distance matrix und die Forme
+##fuer die Brownsche Bewegung dann nicht funktioniert
+
+###And now the PGLS
+#http://www.phytools.org/Cordoba2017/ex/4/PGLS.html
+
+#define covariance structure
+bm.Sp<-corBrownian(1,tree.Sp.ML)
+
+#investigate models
+model1.Sp<-gls(observed_otus~PlantSpecies, data=richness_repl, correlation =bm.Sp)
+summary(model1)
+
+##Ergibt unter anderem"
+AIC      BIC    logLik
+135.3611 139.6094 -61.6805
+Residual standard error: 39.223
+
+
+##das ist weighted. Offensichtlich nimmt die variance mit meanASV zu, daher havbe ich das eingezogen als weighted, dass es
+#proportional zu 
+model1w<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =bm, weights=~mean_ASVs)
+summary(model1w)
+
+AIC      BIC    logLik
+97.02847 101.2768 -42.51423
+Residual standard error: 2.748863 ##das ist ziemlich gut, die plots fitted zu residuals sehen allerdings alle 
+#komisch aus. Ist ds korrekt? Macht das sinn mit dem weighted?
+
+##Oder muss ich method ML nutzen?
+model1b<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =bm, method="ML")
+summary(model1b)
+
+##Aber ist es Brownina motion?
+cPage<-corPagel(1,treeML)
+model1c<-gls(mean_ASVs~PlantFamily, data=meanASVs, correlation =cPage, method="ML")
+
+##Das gibt ein Fehler
+##Wie in http://lukejharmon.github.io/ilhabela/instruction/2015/07/03/PGLS/
+# this is a problem with scale. We can do a quick fix by making the branch
+# lengths longer. This will not affect the analysis other than rescaling a
+# nuisance parameter
+tempTree <-treeML
+tempTree$edge.length <- tempTree$edge.length * 100
+cPage<-corPagel(1,tempTree)
+##Das funktioniert nicht. weder mal 10 noch mal 1000 machen einen Unterschied.
+
+
+##ALLES FALSCH??
+##Ja, ich denke schon.PGLS ist Unsinn.
