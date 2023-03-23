@@ -2,17 +2,10 @@
 library (FactoMineR)
 library(factoextra)
 library(ggrepel)
-#PCA Exp 1 #####
-
-# Ch2 only 8 species #####
 
 
 
 #PCA Exp 1 ####
-
-
-
-
 
 PCA_all_metrics_E1 <- PCA(All_metrics_E1_8Sp_df, quali.sup = c(2,9),   scale.unit = T, graph = F)
 
@@ -76,8 +69,66 @@ ggarrange (plotPca,
 
 
 ##calc of eigenvalues for PC1 for text
-PCA_all_metrics_E2 <- PCA(All_metrics_E2_df, quali.sup = c(8,9,10),   scale.unit = T, graph = F, ncp=3)
+PCA_all_metrics_E2 <- PCA(All_metrics_E2_df, quali.sup = c(8,9,10),   scale.unit = T, graph = F)
 
+#PCA Exp 2 ####
+
+
+PCA_arrows_metrics<-
+  PCA_all_metrics_E2$var$coord %>%  
+  as_tibble (rownames = "metric") %>% 
+  dplyr::rename("D1end" = "Dim.1", "D2end"= "Dim.2")
+
+PCA_metric_data   <- PCA_all_metrics_E2$ind$coord  %>%  as_tibble(rownames = "PlantSpeciesfull") %>% 
+  left_join(metaM0 %>%  select (PlantSpeciesfull, PlantFamily) %>%  unique ())
+
+
+PCA_eig_m_Dim1 <- round (PCA_all_metrics_E2$eig[1,2],1)
+PCA_eig_m_Dim1
+PCA_eig_m_Dim2 <- round (PCA_all_metrics_E2$eig[2,2],1)
+PCA_eig_m_Dim2
+#Plot 
+
+plotPca  <- 
+  PCA_metric_data %>%  
+  mutate (PlantFamily = str_replace(PlantFamily, "Soil","Soil control")) %>% 
+  ggplot (aes (x = Dim.1, y = Dim.2, color = PlantFamily)) + 
+  geom_point (size =3) +
+  geom_hline(yintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
+  geom_vline(xintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
+  #stat_ellipse(aes (x= Dim.1, y = Dim.2, color = group))  +   # thisis 95%confidence
+  geom_segment(data = PCA_arrows_metrics, aes (x=0, xend= D1end*4.5, y = 0, yend = D2end*4.5), 
+               arrow = arrow(length = unit(0.3, "picas")), color = "blue", inherit.aes = F)  +
+  geom_text_repel ( data = PCA_arrows_metrics, aes (x  = D1end*4.5, y = D2end*4.5, label = metric), 
+                    color = "blue", inherit.aes = F , force = 0.6) + 
+  geom_text_repel(data = PCA_metric_data, aes (x = Dim.1, y = Dim.2, label = PlantSpeciesfull), fontface = "italic", inherit.aes = F) +
+  theme_minimal() + 
+  xlab(label = "PC1 (72 %)") +
+  ylab ("PC2 (19 %)") + 
+  guides (color= guide_legend( "Plant family")) +
+  theme (legend.position = "bottom") +
+  scale_color_manual(values=c("Asteraceae"= "#edc948" ,"Cyperaceae" ="#5A6351" ,
+                              "Fabaceae" = "#f28e2b" , 
+                              "Plantaginaceae"= "#4e79a7","Soil control"= "#9c755f",
+                              "Poaceae" = "#7F9A65" )) 
+
+
+
+# plotPca  <- fviz_pca_biplot(PCA_all_metrics,axes = c(1,2), 
+#                             col.var = "contrib", 
+#                             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+#                             repel =T)
+
+plot1 <- fviz_contrib(PCA_all_metrics_E2, choice = "var", axes = 1, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC1")
+plot2 <- fviz_contrib(PCA_all_metrics_E2, choice = "var", axes = 2, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC2")
+plot3 <- fviz_contrib(PCA_all_metrics_E2, choice = "var", axes = 3, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC3")
+
+ggarrange (plotPca,
+           ggarrange (plot1, plot2, plot3, nrow = 3, ncol= 1, labels= c("B", "C", "D")), 
+           nrow=1, ncol=2, widths =  c(2, 1), labels= "A") 
 
 
 ##Procrustes analysis between PCAs#####
@@ -135,3 +186,68 @@ map_dfr(procr_test, ~unlist (c(.$ss, .$svd$d, .$signif)) ) %>%
   mutate (across(where (is.numeric), ~round(.x, digits = 2))) %>% 
 write.csv("results/Procrustes_test.csv")
 
+
+# PCa sample wise #####
+
+All_Metrics_E2_sample <- readRDS ("data/All_metrics_E2_sample.rds")
+All_Metrics_E2_sample_df <- 
+  All_Metrics_E2_sample %>% 
+  relocate(where(is.numeric), .after = where(is.character)) %>%  data.frame(row.names = "sampleID")
+
+##calc of PCA 
+PCA_all_metrics_E2_sample <- PCA(All_Metrics_E2_sample_df, quali.sup = c(1:4),   scale.unit = T, graph = F)
+
+#PCA plot Exp 2 -  for each sample #
+
+
+PCA_arrows_metrics_sample<-
+  PCA_all_metrics_E2_sample$var$coord %>%  
+  as_tibble (rownames = "metric") %>% 
+  dplyr::rename("D1end" = "Dim.1", "D2end"= "Dim.2")
+
+PCA_metric_data_sample   <- PCA_all_metrics_E2_sample$ind$coord  %>%  as_tibble(rownames = "sampleID") %>% 
+  left_join(meta_M1 %>%  select (sampleID, PlantSpeciesfull, PlantFamily) )
+
+
+PCA_eig_m_Dim1 <- round (PCA_all_metrics_E2_sample$eig[1,2],1)
+PCA_eig_m_Dim1
+PCA_eig_m_Dim2 <- round (PCA_all_metrics_E2_sample$eig[2,2],1)
+PCA_eig_m_Dim2
+#Plot 
+
+plotPca  <- 
+  PCA_metric_data_sample %>%  
+  mutate (PlantFamily = str_replace(PlantFamily, "Soil","Soil control")) %>% 
+  ggplot (aes (x = Dim.1, y = Dim.2, color = PlantSpeciesfull)) + 
+  geom_point (size =3) +
+  geom_hline(yintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
+  geom_vline(xintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
+  #stat_ellipse(aes (x= Dim.1, y = Dim.2, color = group))  +   # thisis 95%confidence
+  geom_segment(data = PCA_arrows_metrics_sample, aes (x=0, xend= D1end*4.5, y = 0, yend = D2end*4.5), 
+               arrow = arrow(length = unit(0.3, "picas")), color = "blue", inherit.aes = F)  +
+  geom_text_repel ( data = PCA_arrows_metrics_sample, aes (x  = D1end*4.5, y = D2end*4.5, label = metric), 
+                    color = "blue", inherit.aes = F , force = 0.6) + 
+  geom_text_repel(data = PCA_metric_data_sample, aes (x = Dim.1, y = Dim.2, label = sampleID), 
+                  fontface = "italic", inherit.aes = F) +
+  theme_minimal() + 
+  xlab(label = "PC1 (61 %)") +
+  ylab ("PC2 (17 %)") + 
+  guides (color= guide_legend( "Plant species")) +
+  theme (legend.position = "bottom") 
+#+
+ # # scale_color_manual(values=c("Asteraceae"= "#edc948" ,"Cyperaceae" ="#5A6351" ,
+ #                              "Fabaceae" = "#f28e2b" , 
+ #                              "Plantaginaceae"= "#4e79a7","Soil control"= "#9c755f",
+ #                              "Poaceae" = "#7F9A65" )) 
+
+
+plot1 <- fviz_contrib(PCA_all_metrics_E2_sample, choice = "var", axes = 1, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC1")
+plot2 <- fviz_contrib(PCA_all_metrics_E2_sample, choice = "var", axes = 2, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC2")
+plot3 <- fviz_contrib(PCA_all_metrics_E2_sample, choice = "var", axes = 3, 
+                      font.main = c(size =12 ), title= "Contribution of variables to PC3")
+
+ggarrange (plotPca,
+           ggarrange (plot1, plot2, plot3, nrow = 3, ncol= 1, labels= c("B", "C", "D")), 
+           nrow=1, ncol=2, widths =  c(2, 1), labels= "A") 

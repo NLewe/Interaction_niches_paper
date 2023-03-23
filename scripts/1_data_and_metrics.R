@@ -188,7 +188,8 @@ adiv_richness %>%
                unique ())  %>% 
   dplyr::rename("Richness"= "mean_n_ASV_per_species", "CU" = "CUnits", "β(core)"  = "perc_core",
                 "PD" = "mean_pd", "MPD" = "mean_mpd", "uniqueASV" = "uniqueASVsperPlSpe" )  %>% 
-  add_column (Ex = "E1")
+  add_column (Exp = "E1")
+
 
 # df of  
 All_metrics_E1_df <- 
@@ -251,10 +252,19 @@ unique_M1  <-
   group_by(PlantSpeciesfull)  %>% 
   tally (name ="uniqueASVsperPlSpe")
 
-## CU ###
+## CU ####
 comp_units_M1   <- meannumberASVsper_species_M1  %>% 
   left_join(unique_M1, by = "PlantSpeciesfull")  %>% 
-  mutate (CUnits = uniqueASVsperPlSpe/(meanASV*5))%>% # repl adjustment nor needed here, because all 5 replicates are available
+  mutate (CUnits = uniqueASVsperPlSpe/(meanASV))%>% # repl adjustment nor needed here, because all 5 replicates are available
+  mutate ("1-CU" = 1 - CUnits)
+
+
+meannumberASVsper_species  %>% 
+  left_join(uniqueASVsperPlaSpe)  %>% 
+  left_join (replicates_samples_after_Glo) %>% 
+  group_by (PlantSpeciesfull) %>% 
+  mutate (unique = mean(uniqueASVsperPlSpe)) %>% 
+  mutate (CUnits = 5* unique/(mean_n_ASV_per_species*repl)) %>% # repl adjusted for , times 5 to get back to number of 5 replicates 
   mutate ("1-CU" = 1 - CUnits)
 
 ## Cores####
@@ -323,7 +333,9 @@ All_metrics_E2 <-
   left_join(cores_roots_M1) %>% 
   left_join (PD_MPD_M1) %>% 
   dplyr::rename("Richness"= "meanASV", "CU" = "CUnits", "β(core)"  = "perc_core",
-                "PD" = "mean_pd", "MPD" = "mean_mpd" , "uniqueASV" = "uniqueASVsperPlSpe")
+                "PD" = "mean_pd", "MPD" = "mean_mpd" , "uniqueASV" = "uniqueASVsperPlSpe") %>% 
+  add_column (Exp = "E2")
+
 
   # df 
 All_metrics_E2_df  <- All_metrics_E2 %>% 

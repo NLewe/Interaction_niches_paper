@@ -14,31 +14,34 @@ dataNLrootstosoil <- read_rds ("data/dataNLrootstosoil.rds")
 metaM0 <- read_xlsx("dataCh2/meta/M0_meta.xlsx")
 meta_plants <- read_rds ("data/meta_plants.rds")
 meta_M1Wcontrol <-  read_rds ("data/meta_M1Wcontrol.rds")
-meta_M1Wcontrol <-  read_rds ("data/meta_M1Wcontrol.rds")
 PL_FA_conc_Soil <- read_rds("data/PL_FA_conc_soil.rds")
-All_metrics_M1_8Sp <- read_rds ("data/All_metrics_M1_8Sp.rds")
-PC_data_M1roots  <-  read_rds ("data/PC_data_M1roots.rds")
 
 
-# cleanup data NL ####
-Metrics_exp2  <-
-  adiv_richness_M1 %>% select (sampleID, Observed, Shannon) %>% 
-  left_join(meta_M1 %>%  select (sampleID, PlaSpe))  %>%  
-  left_join (stand_pd_Glo_all_M1 %>% select (sampleID, pd.obs.z)) %>% 
-  left_join(ses.MPD_Glo_M1 %>%  select (sampleID, mpd.obs.z))  %>%  
-  drop_na () %>% 
-  add_column (exp = "Exp2")
 
-saveRDS(Metrics_exp2, "data/Metrics_exp2.rds")
+
+All_metrics_E2_repl <-
+  adiv_richness_M1 %>% 
+  left_join (comp_units_M1 %>%  select (!'1-CU'))    %>%   #includes CU and unique and richness
+  left_join(cores_roots_M1) %>% 
+  left_join (stand_pd_Glo_all_M1 %>%  select (!PlantSpeciesfull)) %>% 
+  left_join (ses.MPD_Glo_M1 %>%  select (sampleID, mpd.obs)) %>% 
+  dplyr::rename("Richness"= "meanASV", "CU" = "CUnits", "β(core)"  = "perc_core",
+                 "uniqueASV" = "uniqueASVsperPlSpe") %>% 
+  add_column (Exp = "E2")
+
+
+
 
 dataNL <- 
   dataNLrootstosoil %>%  
   select (sampleID, AMF, AMFroot, PlaSpe, 
           PlantSpeciesfull, DW_above, DW_roots, totalAMF) %>% 
-  left_join (Metrics_exp2) %>% 
+  left_join (All_metrics_E2_repl) %>% 
   left_join (PCA_all_metrics_E2$ind$coord %>%  as_tibble (rownames = "PlantSpeciesfull")) %>% 
   mutate (AMF = 100 * AMF, AMFroot = 100 * AMFroot, totalAMF = 100 * totalAMF)
 
+
+saveRDS (dataNL, "data/dataNL.rds")
 # dataNL2 <- 
 #   dataNL %>%  filter (PlaSpe != "AchMil") %>% 
 #   filter (PlaSpe != "CicInt")

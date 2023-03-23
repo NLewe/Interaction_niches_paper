@@ -13,10 +13,20 @@ All_metrics_gen_df <-   All_metrics_E1 %>%
   #select (!Richness) %>% 
   data.frame (row.names = "PlantSpeciesfull")
 
-df <- scale (All_metrics_gen_df [, 1:7])
+df <- scale (All_metrics_gen_df [, c(1, 3:8)])
 # Correlation-based distance method
 res.dist <- get_dist(df, method = "euclidean")
 
+
+
+#https://www.datanovia.com/en/lessons/k-means-clustering-in-r-algorith-and-practical-examples/
+#K-means clustering (MacQueen 1967) is one of the most commonly used unsupervised machine learning algorithm 
+#for partitioning a given data set into a set of k groups (i.e. k clusters), where k represents the number of groups
+#pre-specified by the analyst. It classifies objects in multiple groups (i.e., clusters), such that objects within 
+#the same cluster are as similar as possible (i.e., high intra-class similarity), whereas objects from different 
+#clusters are as dissimilar as possible (i.e., low inter-class similarity). 
+#In k-means clustering, each cluster is represented by its center (i.e, centroid) 
+#which corresponds to the mean of points assigned to the cluster.
 
 # Compute hierarchical clustering
 res.hc <- hclust(res.dist, method = "ward.D2")
@@ -25,7 +35,7 @@ plot(res.hc, cex = 0.5)
 
 
 # Enhanced k-means clustering
-res.km <- eclust(df, "kmeans", k=5)
+res.km <- eclust(df, "kmeans", k=4)
 
 fviz_gap_stat(res.km$gap_stat)
 # Silhouette plot
@@ -42,6 +52,53 @@ names(res.hk)
 fviz_cluster(res.hk, palette = "jco", repel = TRUE,
              ggtheme = theme_classic())
 
+# Elbow method
+fviz_nbclust(df, kmeans, method = "wss") +
+  geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method")
+
+# Silhouette method
+fviz_nbclust(df, kmeans, method = "silhouette")+
+  labs(subtitle = "Silhouette method")
+
+# Gap statistic
+# nboot = 50 to keep the function speedy. 
+# recommended value: nboot= 500 for your analysis.
+# Use verbose = FALSE to hide computing progression.
+set.seed(123)
+fviz_nbclust(df, kmeans, nstart = 25,  method = "gap_stat", nboot = 50)+
+  labs(subtitle = "Gap statistic method")
+
+library(NbClust)
+NbClust(df, distance = "euclidean",
+        min.nc = 2, max.nc = 7, method = "kmeans")
+
+# model based clustering
+# which consider the data as coming from a distribution that is mixture of two or more clusters (
+# Bayes !!
+library(mclust)
+df <- scale(All_metrics_gen_df[, -c(2,9)]) # Standardize the data
+mc <- Mclust(df)            # Model-based-clustering
+
+summary (mc)
+
+
+# EEE means that the clusters have the same volume, shape and orientation in p-dimensional space.The Mclust package uses maximum likelihood to fit all these models, with different covariance matrix parameterizations, for a range of k components.
+
+#The best model is selected using the Bayesian Information Criterion or BIC. 
+#A large BIC score indicates strong evidence for the corresponding model.
+
+## BIC is negative - not a good model
+
+
+library(factoextra)
+# BIC values used for choosing the number of clusters
+fviz_mclust(mc, "BIC", palette = "jco")
+# Classification: plot showing the clustering
+fviz_mclust(mc, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+# Classification uncertainty
+fviz_mclust(mc, "uncertainty", palette = "jco")
 
 # PCA #####
 #PCA_all_metrics  <- vegan::rda (All_metrics_generalists, scale = T)
