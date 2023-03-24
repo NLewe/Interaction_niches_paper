@@ -353,8 +353,8 @@ library (ggpubr)
  
  
  
- ggarrange (plot1_richness, plot2_Shannon, plot3_PD,  plot4_PDEff,  
-            plot5_mpd,plot_mpdeff, plot_unique, plot_CU, plot_beta, widths =  c(2,1,1,1,1,1,1,1, 1),
+ ggarrange (plot1_richness, plot2_Shannon, plot3_PD,    
+            plot5_mpd, plot_unique, plot_CU, plot_beta, widths =  c(2,1,1,1,1,1, 1),
             common.legend = T, nrow =1)
  
  

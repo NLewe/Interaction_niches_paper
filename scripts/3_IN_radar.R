@@ -20,7 +20,7 @@ plot_radar_E1<-
           plot.title = "Experiment 1")
 
 plot_radar_E2 <- 
-All_metrics_E2 %>%  ungroup () %>% 
+All_metrics_E %>%  ungroup () %>% 
   select (-PlantFamily, -Exp) %>% 
   mutate (across (!PlantSpeciesfull, rescale)) %>% 
   ggradar(legend.title = "Plant species", plot.title = "Experiment 2") 
@@ -49,8 +49,22 @@ ggarrange (radar_plots[[1]], radar_plots[[2]], radar_plots[[3]], radar_plots[[4]
            common.legend = T, nrow = 2, ncol=4)
 
 
+All_metrics_E1 %>%  
+  ungroup() %>% 
+  mutate(across(!c(PlantSpeciesfull,PlantFamily,Exp), rescale)) %>% 
+  select (-PlantFamily) %>% 
+  group_split(PlantSpeciesfull) %>% 
+  map (~select (., -Exp)) %>% 
+  map (~ggradar(.,)) 
 
 
+
+plot_radar_E1 <- 
+  All_metrics_E1 %>%  ungroup () %>% 
+  select (-PlantFamily, -Exp) %>% 
+  filter (!is.na (PD)) %>% 
+  mutate (across (!PlantSpeciesfull, rescale)) %>% 
+  ggradar(legend.title = "Plant species", plot.title = "Experiment 1") 
 
   
   

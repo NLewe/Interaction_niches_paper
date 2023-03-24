@@ -301,6 +301,15 @@ stand_pd_Glo_all_M1  <-
 dist_Glo_M1  <- cophenetic(phy_tree(ps_M1_roots_Glo_rar))
 ses.MPD_Glo_M1  <-  as_tibble (ses.mpd (comm_df_Glo_M1, dist_Glo_M1, null.model = "independentswap" ), rownames = "sampleID")
 
+#agglomerate to Plant Species
+ps_Glo_perPlaSpe_M1  <- merge_samples(ps_M1_roots_Glo_rar, group = "PlantSpeciesfull")
+
+#make df for Glo_PlaSpe data (empty samples samples pruned )
+comm_df_Glo_PlaSpe_M1  <- data.frame (otu_table (ps_Glo_perPlaSpe_M1)) # vegan expects samples as rows and ASVs species as columns
+
+ses.MPD_Glo_PlaSpe_M1  <-  as_tibble (ses.mpd (comm_df_Glo_PlaSpe_M1, dist_Glo_M1, null.model = "independentswap" ), rownames = "sampleID")# tree is the same as before
+
+
 # together PD, MPD
 PD_MPD_M1 <-  
   stand_pd_Glo_all_M1 %>%  
@@ -344,4 +353,17 @@ All_metrics_E2_df  <- All_metrics_E2 %>%
 
 rownames(All_metrics_E2_df)  <- All_metrics_E2_df$PlantSpeciesfull
 
+## All metrics per sample  ####
 
+All_Metrics_E2_sample  <- 
+  adiv_richness_M1 %>% 
+  left_join (comp_units_M1 %>%  select (!'1-CU'))    %>%   #includes CU and unique and richness
+  left_join(cores_roots_M1) %>% 
+  left_join (stand_pd_Glo_all_M1 %>%  select (sampleID, pd.obs)) %>%
+  left_join (ses.MPD_Glo_M1 %>%  select (sampleID, mpd.obs) )  %>% 
+  select (!meanASV) %>% 
+  dplyr::rename( "CU" = "CUnits", "β(core)"  = "perc_core",
+                 "uniqueASV" = "uniqueASVsperPlSpe") %>% 
+  add_column (Exp = "E2")
+
+saveRDS(All_Metrics_E2_sample, "data/All_metrics_E2_sample.rds")

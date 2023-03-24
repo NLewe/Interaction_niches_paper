@@ -187,7 +187,7 @@ map_dfr(procr_test, ~unlist (c(.$ss, .$svd$d, .$signif)) ) %>%
 write.csv("results/Procrustes_test.csv")
 
 
-# PCa sample wise #####
+# PCA sample wise #####
 
 All_Metrics_E2_sample <- readRDS ("data/All_metrics_E2_sample.rds")
 All_Metrics_E2_sample_df <- 
@@ -203,22 +203,25 @@ PCA_all_metrics_E2_sample <- PCA(All_Metrics_E2_sample_df, quali.sup = c(1:4),  
 PCA_arrows_metrics_sample<-
   PCA_all_metrics_E2_sample$var$coord %>%  
   as_tibble (rownames = "metric") %>% 
-  dplyr::rename("D1end" = "Dim.1", "D2end"= "Dim.2")
+  dplyr::rename("D1end" = "Dim.1", "D2end"= "Dim.3")
 
 PCA_metric_data_sample   <- PCA_all_metrics_E2_sample$ind$coord  %>%  as_tibble(rownames = "sampleID") %>% 
   left_join(meta_M1 %>%  select (sampleID, PlantSpeciesfull, PlantFamily) )
 
+saveRDS(PCA_metric_data_sample, "data/PCA_metric_data_sample.rds")
 
 PCA_eig_m_Dim1 <- round (PCA_all_metrics_E2_sample$eig[1,2],1)
 PCA_eig_m_Dim1
 PCA_eig_m_Dim2 <- round (PCA_all_metrics_E2_sample$eig[2,2],1)
 PCA_eig_m_Dim2
+PCA_eig_m_Dim3 <- round (PCA_all_metrics_E2_sample$eig[3,2],1)
+
 #Plot 
 
 plotPca  <- 
   PCA_metric_data_sample %>%  
   mutate (PlantFamily = str_replace(PlantFamily, "Soil","Soil control")) %>% 
-  ggplot (aes (x = Dim.1, y = Dim.2, color = PlantSpeciesfull)) + 
+  ggplot (aes (x = Dim.1, y = Dim.3, color = PlantSpeciesfull)) + 
   geom_point (size =3) +
   geom_hline(yintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
   geom_vline(xintercept = 0, lty = 2, color = "grey", alpha = 0.9) + 
@@ -227,11 +230,11 @@ plotPca  <-
                arrow = arrow(length = unit(0.3, "picas")), color = "blue", inherit.aes = F)  +
   geom_text_repel ( data = PCA_arrows_metrics_sample, aes (x  = D1end*4.5, y = D2end*4.5, label = metric), 
                     color = "blue", inherit.aes = F , force = 0.6) + 
-  geom_text_repel(data = PCA_metric_data_sample, aes (x = Dim.1, y = Dim.2, label = sampleID), 
+  geom_text_repel(data = PCA_metric_data_sample, aes (x = Dim.1, y = Dim.3, label = sampleID), 
                   fontface = "italic", inherit.aes = F) +
   theme_minimal() + 
   xlab(label = "PC1 (61 %)") +
-  ylab ("PC2 (17 %)") + 
+  ylab ("PC3 (13 %)") + 
   guides (color= guide_legend( "Plant species")) +
   theme (legend.position = "bottom") 
 #+
